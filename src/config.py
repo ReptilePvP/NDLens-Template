@@ -14,8 +14,8 @@ class Config:
     MAX_URLS_TO_SCRAPE = 15
     MAX_CHARACTERS_IN_SUMMARY = 20000
     
-    # Directories - Use /tmp for Vercel serverless compatibility
-    BASE_DIR = "/tmp" if os.environ.get("VERCEL") else "../data"
+    # Directories - Use /tmp for serverless, relative paths for regular deployment
+    BASE_DIR = "/tmp" if os.environ.get("VERCEL") else "data"
     IMAGE_DIR = f"{BASE_DIR}/images"
     CSV_DIR = f"{BASE_DIR}/csv"
     TXT_DIR = f"{BASE_DIR}/txt"

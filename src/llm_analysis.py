@@ -3,7 +3,14 @@ from openai import OpenAI
 import logging
 import argparse
 from config import Config
-from secret_key import API_KEY
+
+# Try to import API key from secret_key.py, fallback to environment variable
+try:
+    from secret_key import OPENAI_API_KEY as API_KEY
+except ImportError:
+    API_KEY = os.getenv("OPENAI_API_KEY")
+    if not API_KEY:
+        raise ValueError("OPENAI_API_KEY not found. Please set environment variable or create secret_key.py")
 
 # Setup logging
 logger = logging.getLogger(__name__)
