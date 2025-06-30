@@ -11,19 +11,5 @@
       "src": "/(.*)",
       "dest": "src/main.py"
     }
-  ],
-  "functions": {
-    "src/main.py": {
-      "runtime": "python3.9",
-      "maxDuration": 60
-    }
-  },
-  "env": {
-    "OPENAI_API_KEY": "@openai-api-key"
-  },
-  "build": {
-    "env": {
-      "PYTHON_VERSION": "3.9"
-    }
-  }
+  ]
 }
