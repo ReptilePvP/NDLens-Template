@@ -79,7 +79,23 @@ async def process_image(request: ImageRequest, background_tasks: BackgroundTasks
         logger.info(f"Starting Google Lens search for image")
         result = run_google_lens_search(image_path, csv_path)
         if not result:
-            raise HTTPException(status_code=500, detail="Google Lens search failed")
+            # Check if CSV file was created to see if we got any results at all
+            if os.path.exists(csv_path):
+                try:
+                    with open(csv_path, 'r') as f:
+                        csv_content = f.read().strip()
+                        if csv_content and len(csv_content.split('\n')) > 1:  # Has header + at least one row
+                            logger.warning("Google Lens search had issues but some results were found")
+                            result = "Partial success"
+                        else:
+                            logger.error("Google Lens search failed - no results found")
+                            raise HTTPException(status_code=500, detail="Google Lens could not process the image. This may be due to anti-bot detection or the image format. Please try again with a different image.")
+                except:
+                    logger.error("Google Lens search failed - could not read results")
+                    raise HTTPException(status_code=500, detail="Google Lens search encountered an error. Please try again.")
+            else:
+                logger.error("Google Lens search failed - no CSV file created")
+                raise HTTPException(status_code=500, detail="Google Lens search failed completely. This may indicate an issue with image upload or anti-bot detection.")
         logger.info(f"Google Lens results saved to {csv_path}")
         
         # Scrape content from URLs

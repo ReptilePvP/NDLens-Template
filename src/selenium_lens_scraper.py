@@ -18,15 +18,29 @@ from config import Config
 logger = logging.getLogger(__name__)
 
 def setup_anti_detection_driver():
-    """Create a Chrome driver with anti-detection measures"""
+    """Create a Chrome driver with enhanced anti-detection measures"""
     options = webdriver.ChromeOptions()
     
-    # Common user agent
-    user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+    # Enhanced User Agent - Use a recent, common one
+    user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     options.add_argument(f'user-agent={user_agent}')
     
-    # Disable automation flags
+    # Enhanced anti-detection flags
     options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('--exclude-switches=enable-automation')
+    options.add_argument('--disable-extensions-except')
+    options.add_argument('--disable-plugins-discovery')
+    options.add_argument('--disable-default-apps')
+    options.add_argument('--no-first-run')
+    options.add_argument('--disable-background-timer-throttling')
+    options.add_argument('--disable-renderer-backgrounding')
+    options.add_argument('--disable-backgrounding-occluded-windows')
+    options.add_argument('--disable-features=TranslateUI')
+    options.add_argument('--disable-ipc-flooding-protection')
+    
+    # Viewport and window settings to mimic real user
+    options.add_argument('--window-size=1366,768')
+    options.add_argument('--start-maximized')
     
     # Various anti-detection settings
     options.add_experimental_option('excludeSwitches', ['enable-automation'])
@@ -36,14 +50,25 @@ def setup_anti_detection_driver():
     options.add_argument('--disable-extensions')
     options.add_argument('--disable-notifications')
     options.add_argument('--disable-popup-blocking')
+    options.add_argument('--disable-web-security')
+    options.add_argument('--allow-running-insecure-content')
+    
+    # Memory and performance optimizations
+    options.add_argument('--memory-pressure-off')
+    options.add_argument('--max_old_space_size=4096')
+    
+    # Add proxy if configured
+    if Config.PROXY_URL:
+        logger.info(f"Using proxy: {Config.PROXY_URL}")
+        options.add_argument(f'--proxy-server={Config.PROXY_URL}')
     
     # Required for running in Docker container
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     
-    # Headless mode - configurable
+    # Headless mode - use new headless if available
     if Config.HEADLESS_MODE:
-        options.add_argument('--headless')
+        options.add_argument('--headless=new')
     
     # Set page load strategy to EAGER for faster loading
     options.page_load_strategy = 'eager'
@@ -64,30 +89,77 @@ def setup_anti_detection_driver():
             logger.error(f"Error with Chrome: {e}")
             raise
     
-    # Anti-detection script
+    # Enhanced anti-detection script
     driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
         'source': '''
+            // Remove webdriver traces
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
             });
             
-            // Additional evasions
-            Object.defineProperty(navigator, 'language', {
-                get: () => 'en-US'
+            // Override plugins to appear normal
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5]
             });
+            
+            // Override languages  
             Object.defineProperty(navigator, 'languages', {
                 get: () => ['en-US', 'en']
+            });
+            
+            Object.defineProperty(navigator, 'language', {
+                get: () => 'en-US'
             });
             
             // Override permissions
             const originalQuery = window.navigator.permissions.query;
             window.navigator.permissions.query = (parameters) => (
                 parameters.name === 'notifications' ?
-                Promise.resolve({ state: Notification.permission }) :
-                originalQuery(parameters)
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
             );
+            
+            // Randomize screen properties
+            Object.defineProperty(screen, 'availHeight', {
+                get: () => 1040
+            });
+            Object.defineProperty(screen, 'availWidth', {
+                get: () => 1920
+            });
+            
+            // Hide chrome automation indicators
+            window.chrome = {
+                runtime: {}
+            };
+            
+            // Spoof webGL vendor
+            const getParameter = WebGLRenderingContext.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                if (parameter === 37445) {
+                    return 'Intel Inc.';
+                }
+                if (parameter === 37446) {
+                    return 'Intel Iris OpenGL Engine';
+                }
+                return getParameter(parameter);
+            };
+            
+            // Override navigator properties
+            Object.defineProperty(navigator, 'platform', {
+                get: () => 'Win32'
+            });
+            Object.defineProperty(navigator, 'hardwareConcurrency', {
+                get: () => 8
+            });
+            Object.defineProperty(navigator, 'deviceMemory', {
+                get: () => 8
+            });
         '''
     })
+    
+    # Add random delays to mimic human behavior
+    import random
+    time.sleep(random.uniform(0.5, 1.5))
     
     return driver
 
@@ -300,25 +372,71 @@ def upload_image(driver, file_element, image_path):
         abs_image_path = os.path.abspath(image_path)
         logger.info(f"Uploading image: {abs_image_path}")
         
+        # Verify image file exists and is valid
+        if not os.path.exists(abs_image_path):
+            logger.error(f"Image file does not exist: {abs_image_path}")
+            return False
+            
+        # Check file size (should be reasonable)
+        file_size = os.path.getsize(abs_image_path)
+        logger.info(f"Image file size: {file_size} bytes")
+        if file_size == 0:
+            logger.error("Image file is empty")
+            return False
+        
         # If it's an input element, use send_keys
         if file_element.tag_name.lower() == 'input' and file_element.get_attribute('type') == 'file':
             file_element.send_keys(abs_image_path)
-            logger.info("File upload initiated")
+            logger.info("File upload initiated via input element")
+            
+            # Wait a bit for upload to process
+            time.sleep(2)
+            
+            # Try to verify upload started by checking if input has value
+            try:
+                if file_element.get_attribute('value'):
+                    logger.info("Upload appears successful - input has value")
+                    return True
+                else:
+                    logger.warning("Upload may have failed - input has no value")
+            except:
+                logger.debug("Could not check input value")
+            
             return True
             
         # Otherwise try to trigger the file dialog and look for input
         else:
             logger.info("Element is not a file input, trying to find one after clicking")
             file_element.click()
-            time.sleep(1)
+            time.sleep(2)  # Increased wait time
             
             try:
                 file_input = driver.find_element(By.CSS_SELECTOR, "input[type='file']")
                 file_input.send_keys(abs_image_path)
                 logger.info("File upload initiated after click")
+                time.sleep(2)  # Wait for upload processing
                 return True
             except Exception as e:
                 logger.error(f"Failed to find file input after click: {e}")
+                
+                # Try alternative selectors for file input
+                selectors = [
+                    "input[accept*='image']",
+                    "input[accept*='*']",
+                    "input[type='file']"
+                ]
+                
+                for selector in selectors:
+                    try:
+                        logger.debug(f"Trying alternative selector: {selector}")
+                        alt_input = driver.find_element(By.CSS_SELECTOR, selector)
+                        alt_input.send_keys(abs_image_path)
+                        logger.info(f"File upload successful with selector: {selector}")
+                        time.sleep(2)
+                        return True
+                    except:
+                        continue
+                        
                 return False
                 
     except Exception as e:
@@ -425,8 +543,15 @@ def run_google_lens_search(image_path, csv_path):
         logger.info(f"Opening {url}...")
         driver.get(url)
         
+        # Add random delay to mimic human behavior
+        import random
+        time.sleep(random.uniform(1.0, 2.5))
+        
         # Handle cookie consent dialog
         handle_cookie_consent(driver)
+        
+        # Random delay after cookie handling
+        time.sleep(random.uniform(0.5, 1.5))
         
         # Set window size
         driver.set_window_size(1366, 768)
@@ -434,13 +559,19 @@ def run_google_lens_search(image_path, csv_path):
         # Wait for page to load completely
         wait_for_page_load(driver)
         
+        # Random delay before clicking lens button
+        time.sleep(random.uniform(1.0, 2.0))
+        
         # Click on Google Lens button
         if not click_lens_button(driver):
             logger.error("Failed to access Google Lens - aborting")
-            return
+            return False
             
         # Wait for Google Lens interface to load
         wait_for_page_load(driver)
+        
+        # Random delay before import
+        time.sleep(random.uniform(0.8, 1.8))
         
         # Find and click import option
         file_input = find_and_click_import_option(driver)
@@ -448,7 +579,24 @@ def run_google_lens_search(image_path, csv_path):
         # Upload image file
         if not upload_image(driver, file_input, image_path):
             logger.error("Failed to upload image - aborting")
-            return
+            return False
+            
+        # Wait longer for image to be processed by Google Lens
+        logger.info("Waiting for image upload to complete...")
+        time.sleep(3)  # Additional wait for upload processing
+        
+        # Check if upload was successful by looking for error messages
+        try:
+            # Look for Google's "seems there was no image uploaded" error or similar
+            error_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'seems there') or contains(text(), 'no image') or contains(text(), 'upload') or contains(text(), 'error')]")
+            if error_elements:
+                for element in error_elements:
+                    error_text = element.text.lower()
+                    if any(phrase in error_text for phrase in ['seems there', 'no image', 'upload failed', 'try again']):
+                        logger.error(f"Google Lens upload error detected: {element.text}")
+                        return False
+        except Exception as e:
+            logger.debug(f"Error check failed (this is okay): {e}")
             
         # Wait for search results to load
         logger.info("Waiting for search results...")

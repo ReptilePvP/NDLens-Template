@@ -7,6 +7,10 @@ class Config:
     # Selenium settings
     HEADLESS_MODE = True
     
+    # Proxy settings (optional) - Set PROXY_URL to use a proxy
+    # Example: "http://username:password@proxy-server:port"
+    PROXY_URL = os.environ.get("PROXY_URL", None)
+    
     # Image settings (this is only when usung the fastapi backend)
     IMAGE_FILE_EXTENSION = "png"
     
