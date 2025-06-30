@@ -1,0 +1,19 @@
+name: ndlens-api
+services:
+- name: api
+  source_dir: /
+  github:
+    repo: ReptilePvP/NDLens-Template
+    branch: main
+  run_command: cd src && uvicorn main:app --host 0.0.0.0 --port $PORT
+  build_command: pip install -r requirements.txt
+  environment_slug: python
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  envs:
+  - key: OPENAI_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+  http_port: 8080
+  health_check:
+    http_path: /

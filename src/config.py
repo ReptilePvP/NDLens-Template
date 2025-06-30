@@ -14,15 +14,16 @@ class Config:
     MAX_URLS_TO_SCRAPE = 15
     MAX_CHARACTERS_IN_SUMMARY = 20000
     
-    # Directories
-    IMAGE_DIR = "../data/images"
-    CSV_DIR = "../data/csv"
-    TXT_DIR = "../data/txt"
+    # Directories - Use /tmp for Vercel serverless compatibility
+    BASE_DIR = "/tmp" if os.environ.get("VERCEL") else "../data"
+    IMAGE_DIR = f"{BASE_DIR}/images"
+    CSV_DIR = f"{BASE_DIR}/csv"
+    TXT_DIR = f"{BASE_DIR}/txt"
     
     #What to remove at the end of pipeline
     REMOVE_IMAGES = True
-    REMOVE_CSVS = False 
-    REMOVE_TXT = False
+    REMOVE_CSVS = True  # Changed to True for serverless to save space
+    REMOVE_TXT = True   # Changed to True for serverless to save space
     
     # OpenAI API settings
     BASE_URL = "https://api.openai.com/v1"

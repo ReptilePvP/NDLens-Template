@@ -111,3 +111,6 @@ async def process_image(request: ImageRequest, background_tasks: BackgroundTasks
     except Exception as e:
         logger.error(f"Error processing request: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+
+# Vercel serverless handler
+handler = app
